@@ -1,0 +1,301 @@
+object frmDataAware: TfrmDataAware
+  Left = 371
+  Height = 456
+  Top = 139
+  Width = 730
+  ActiveControl = pctPages
+  Caption = 'Daily Diary'
+  ClientHeight = 456
+  ClientWidth = 730
+  KeyPreview = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnResize = FormResize
+  OnShow = FormShow
+  LCLVersion = '2.2.2.0'
+  object pnlTop: TPanel
+    Left = 0
+    Height = 50
+    Top = 0
+    Width = 730
+    Align = alTop
+    BevelOuter = bvNone
+    ClientHeight = 50
+    ClientWidth = 730
+    TabOrder = 0
+    OnClick = pnlTopClick
+    object btnClose: TSpeedButton
+      Left = 5
+      Height = 30
+      Hint = 'Close Daily Diary'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 0
+      OnClick = btnCloseClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+    object btnReadData: TSpeedButton
+      Left = 35
+      Height = 30
+      Hint = 'Read the diary anew...'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 1
+      OnClick = btnReadDataClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+    object btnUpdate: TSpeedButton
+      Left = 65
+      Height = 30
+      Hint = 'Edit & update the current page... (F2)'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 2
+      OnClick = btnUpdateClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+    object btnAdd: TSpeedButton
+      Left = 95
+      Height = 30
+      Hint = 'Write a new page in the diary... (Ctrl + N)'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 3
+      OnClick = btnAddClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+    object btnDelete: TSpeedButton
+      Left = 125
+      Height = 30
+      Hint = 'Delete the current page in diary (Delete)'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 4
+      OnClick = btnDeleteClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+    object btnSettings: TSpeedButton
+      Left = 692
+      Height = 30
+      Hint = 'Change the settings of this app...'
+      Top = 10
+      Width = 30
+      Flat = True
+      Images = ImageList1
+      ImageIndex = 7
+      OnClick = btnSettingsClick
+      ShowHint = True
+      ParentShowHint = False
+    end
+  end
+  object stbStatus: TStatusBar
+    Left = 0
+    Height = 19
+    Top = 437
+    Width = 730
+    Panels = <>
+  end
+  object pctPages: TPageControl
+    Left = 0
+    Height = 387
+    Top = 50
+    Width = 730
+    ActivePage = tabMainDiary
+    Align = alClient
+    TabIndex = 0
+    TabOrder = 2
+    OnCloseTabClicked = pctPagesCloseTabClicked
+    Options = [nboShowCloseButtons]
+    object tabMainDiary: TTabSheet
+      Caption = '&Main Diary'
+      ClientHeight = 355
+      ClientWidth = 720
+      object gbxNavigation: TGroupBox
+        Left = 0
+        Height = 355
+        Top = 0
+        Width = 200
+        Align = alLeft
+        Caption = ' Navigator '
+        ClientHeight = 337
+        ClientWidth = 198
+        TabOrder = 0
+        object trvNav: TTreeView
+          Left = 0
+          Height = 337
+          Top = 0
+          Width = 198
+          Align = alClient
+          Images = ImageList1
+          ReadOnly = True
+          TabOrder = 0
+          OnSelectionChanged = trvNavSelectionChanged
+          Options = [tvoAutoItemHeight, tvoHideSelection, tvoKeepCollapsedNodes, tvoReadOnly, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+        end
+      end
+      object Splitter1: TSplitter
+        Left = 200
+        Height = 355
+        Top = 0
+        Width = 5
+      end
+      object gbxText: TGroupBox
+        Left = 205
+        Height = 355
+        Top = 0
+        Width = 515
+        Align = alClient
+        Caption = ' Diary text '
+        ClientHeight = 337
+        ClientWidth = 513
+        TabOrder = 2
+        object memText: TMemo
+          Left = 0
+          Height = 303
+          Top = 0
+          Width = 513
+          Align = alClient
+          OnClick = memTextClick
+          ReadOnly = True
+          ScrollBars = ssAutoBoth
+          TabOrder = 0
+        end
+        object pnlEditButtons: TPanel
+          Left = 0
+          Height = 34
+          Top = 303
+          Width = 513
+          Align = alBottom
+          BevelOuter = bvNone
+          ClientHeight = 34
+          ClientWidth = 513
+          TabOrder = 1
+          Visible = False
+          object btnEditSave: TSpeedButton
+            Left = 481
+            Height = 30
+            Hint = 'Save data and return to browsing... (Ctrl+S)'
+            Top = 2
+            Width = 30
+            Flat = True
+            Images = ImageList1
+            ImageIndex = 6
+            OnClick = btnEditSaveClick
+            ShowHint = True
+            ParentShowHint = False
+          end
+          object btnEditCancel: TSpeedButton
+            Left = 2
+            Height = 30
+            Hint = 'Cancel and return to browsing... (Escape)'
+            Top = 2
+            Width = 30
+            Flat = True
+            Images = ImageList1
+            ImageIndex = 5
+            OnClick = btnEditCancelClick
+            ShowHint = True
+            ParentShowHint = False
+          end
+          object lblName: TLabel
+            Left = 65
+            Height = 15
+            Top = 9
+            Width = 325
+            Caption = 'Daily Diary v. 02.03.11.2022 ©2020-2022 copyright cdbc'
+            Enabled = False
+            Font.Height = -13
+            Font.Name = 'Arial'
+            Font.Style = [fsItalic]
+            ParentColor = False
+            ParentFont = False
+          end
+        end
+      end
+    end
+  end
+  object ImageList1: TImageList
+    Left = 512
+    Top = 13
+    Bitmap = {
+      4C7A080000001000000010000000A90700000000000078DAED997F50D3E719C0
+      BF67EBEED6DAB976FB73DEB577BB6B6F14AA4336C1DB4D710A85629933DD81B4
+      7522581566DD26DA90405AFB3BE0ACB528878024808228417EABE45731100810
+      7ECA862C894A8CC1100B4820093C7B9F2F5043F82610D01BDBEDB97BEECDF779
+      9ECFF3BCCFF37DDFE48F5014B3E4BE1F7C477EEC3D2DAED4020459501502AE9E
+      70A7F7AC5FCBE351CB9CF99331EBBDDC71C8141D0ECB2E3CF4C63DFEDB3ECF3A
+      F3F90783EF5C4808CBC03826BEE0505886A93A6DACFE9BF85B4CBC3425F69FA6
+      AA6F6C1712DECC7066B3F605067409B903185F7722FE767AACEF334C3C3E77E6
+      700672F66FF277E44B387F289D682C005B7D3E5C626FBBC234BF6262B72BCFC1
+      78C3791071B69738F2359FEF52616C6FC1C70F4FEF5ABF96E9FD9D8AF6FF15F1
+      0F631CC63BF2646F37D1AEF83A5E778CE5FF43A6F9A0BDEEEBF85B18274B89E9
+      9951FF8B5D6D68EF12260DB87A4FE93BFDBDBB8549E6A9FA6D8E3E1187550E74
+      FF79DFF7EF2CC589DBAEE27C304E94B8BDCCD177F6CF1B3775E7F1E8F91B2B4F
+      8E60ECA9E88057792CAF1F605D7C36569DB4A0FF06D963CEBE4D1B9DF31726BC
+      29305F3D65C718DC07EE55F1559C0E57BA2EB1A3BF30214CC078FE366C781A73
+      DCC84D1AC03D62FCF74A9ED18E2CC6B93BC782F70303455C561999692B792FBD
+      B862BF82B8C0406A898AB6F0E84B9A8B7C9E4E74BC4A539CDA79B3882FE9CEFD
+      F0E3F6ACC45537B28FBCD89A7924A52D93A368CD6477AB3312AEA94EC47FA8E4
+      EF7E09594DD19711DA4B29237A65D9A849D309DF196EC17D4D17E86A45D68E6C
+      B6A535E3B045FB6DB1D5D8DB0966BD060CDDCDF08F8AB3A38A943D23D2CFA222
+      7A2F7C7EECAE5A0A131313302D232323D0D7D707DADE9BA0218A9FD1362D18DB
+      232902F14791A937CF7F966DE8508056AB0591480442A1100A0A0A402291407B
+      7B3BB4B5B541494909E4E6E6425E5E1E545757437F7F3FF45E2F83ABBC3F6675
+      093F2A3676ABC06432D16AB7DBC16834424D4D0DCD7774744053531398CD66B0
+      D96CA0D3E9E85A3A9518AAB9AC4B1DD99C1A638FDAE3FAB7D5B550F641F8B596
+      F4430DF73A951ED7BFDD2C01D1C16065C389B81B865639637D6431C7E5CB97E9
+      DA33EA375E85A27DBFED52F0637486A66B33EAA35F2C16D37C676727343737C3
+      83070F66D4EF5356C0B9E8755AD92751FD86C64A70148BC5027ABD9E6651F133
+      DA1CA5AFAE1404EFAC365E4B620D69CB4FC3DDDA8BF02FD157D05BC4070D79D6
+      368A09DB41ABA6B1063465A7691FC6D0B1A5692088F219AA3CB2D526E5845BAF
+      1C0E35971DDC32587AE077E6AABF6E1EAAE586813A2B11D4998920678782686F
+      C050FECE5F9AF3DE7D6DF0C26E3F7359FC6FAC3991DEB6F2BF04E5941EDCC229
+      8ADB1854B877FDCB853101ABCF47AFDB7D3E7AADB624D66F4C14E33B268CF2D1
+      E64478EDCE8EF45A9D19E5F3B220D22B4810E9CD1146FAE4B8BA5367585E2F08
+      767827E544BE9A9CF3CE2B3F591A37BD70254595AF5E385B5A4F518D0F28EACE
+      3A4FC8F4F4F495E1E185E47BB77182B04051E32487E1D7F365C999AE97CBE510
+      17A7AB252CC97197E46822394AD6B8637D59E92B7FF181A8EAECB7F5BD786651
+      0E1CE89311769CF4427E43F39E77C7FEFCB0A8FE474A2D2C1B1EEE6FB18CF6E2
+      D9C77D6CDB765130398FB9596A78189EEEE881174A1AFA0595D21EF23DA04A4B
+      4B7BDE13F6C72225FC8C5F053EFBCE55E23CDCB209A23A26F6953DF92AEFC839
+      FA5D208BF2C6278AE32B951A3B035B8FB9DDB17F4A6D5FF56E6ABBFDF767BA15
+      CBDB7B6C9ED445D9F169DD178407D4ED27DA14ABF855B6F9B261B1BC67023686
+      DADE625F86A91CF6ADBCEBC7E7DAF3B4F8F9F9BDE5EBEB0BFE2447D4A7CAD49D
+      7F6F79D193BBB166CD9AD73007EE6321B7921CE925A676A216EACB5D9BC151D1
+      36E99B8BB7111DA479435315AD93FC20B15BA762265CD445F621511303DF3FE5
+      1B73B10F0B355903E3F40CBC7ECAF7DD54EC4CDEB95F677EF63C66F3D3F173E9
+      93E217B37F80D1A9F999DCCCCF34156359C4FBB3CD718EDC9D1FDBA2CFEFF892
+      BB6F4BF6FECFD005DC7FAAA5884FEB24EFF1FD77E23DBEFF4EBCE7F7DF9DFE37
+      DC7F4FF6CF70FF19E6E7D1FD77F1FEE67DFF19CE8F6DD1E777A9DDFFA524CBA9
+      8A385437FEBDA84CBE6554F97B2BA8967BCF51EA7E1213CFE0DFFFC85FB5DF15
+      FF534A0FCE39A6D947BED93CCA535445CCA3B8563AC7535465ACB36DAE199078
+      23C6AFA0D446D4C9CF2D4677B399DDABDA801C533F4F925FCCFE9966C5345377
+      EF7FA1EF6FB1E767AEF3391FFF7F427263D64244C490C78ADCE3E2EF0F0C78AC
+      FFE71F1FBF507DDC7C45CD15973A5FDE559EFF619EB598F93D299125858AC5EC
+      CD80EB7CE255B1BECB65BC9033626E5024CD7343EF0F541E075CF119EDB2E4D7
+      33318EF1FF465E48962A256AA4F668F8B02C29A441C67DDD3AAECC075CF119ED
+      E8C738265E92B86507C658E459A02F3A0A568580FEEF06577C46FBF5A3E10F25
+      ECCD51AE7B0E69A0636559406A0D4A39415655CADB831679269D03FD8C1C2F44
+      8C7DCA934247B19E8ABF63509C18C4AEFEDB9667A5EC202EE6403BFA310EE31D
+      799C33CE0AFBC53D4B1383AC12DE8615E8AB4DD8FA9C941B3C8676F4631CC6BB
+      AD4FEA615DCC2161072737A5BAAF3FAB7FD26F532AE99FECA3E918F69FE5B6FF
+      C731FF79BE7F8B3C3924FB499CBF59FB490E95E09C71A596B0FC1BD8B7EA21
+    }
+  end
+end
