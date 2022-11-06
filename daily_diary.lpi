@@ -45,18 +45,27 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit>
+      <Unit>
+        <Filename Value="bom/textsearch_dd.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="daily_diary"/>
+      <Filename Value="daily_dairy"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../bc_rtl/inc"/>
-      <OtherUnitFiles Value="../../bc_rtl;bom;global;../../bc_rtl/frames"/>
+      <OtherUnitFiles Value="../../bc_rtl;../../bc_rtl/frames;bom;global"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <AllowLabel Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>
