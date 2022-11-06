@@ -102,7 +102,7 @@ var
   frmDataAware: TfrmDataAware;
 
 implementation
-uses LCLType{, bc_errorlog_mt}, bc_msgqueue, dd_settings, bc_pcthelp; {*}
+uses LCLType, bc_advstring, bc_msgqueue, dd_settings, bc_pcthelp; {*}
 {$R *.lfm}
 
 { TbcMemo }
@@ -151,10 +151,15 @@ end;
 
 { TfrmDataAware }
 procedure TfrmDataAware.pnlTopClick(Sender: TObject);
-
+var Res: TbcStringType;
 begin
 //  fBom.BackupData;
-
+  Res:= bcGetStringType(InputBox('bcGetStringType','Pease enter a string:','01.01.1970'));
+  case Res of
+    TAlpha: ShowMessage('Type: TAlpha');
+    TNumeric: ShowMessage('Type: TNumeric');
+    TAlphaNumeric: ShowMessage('Type: TAlphaNumeric');
+  end;
 end;
 
 procedure TfrmDataAware.trvNavSelectionChanged(Sender: TObject);

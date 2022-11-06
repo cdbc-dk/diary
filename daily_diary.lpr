@@ -10,7 +10,7 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, lfm_dataaware;
+  Forms, lfm_dataaware, textsearch_dd;
 
 {$R *.res}
 
