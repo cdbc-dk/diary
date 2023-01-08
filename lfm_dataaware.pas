@@ -12,12 +12,14 @@ uses
   bc_datetime,     { provides advanced date and time classes + utility functions }
   bc_trvhelp,      { provides versatile function for dealing with ttreeview }
   tfm_settings,    { provides the "settings" frame * }
-  bc_utilities;    { provides amongst others stream concatenation }
-
+  bc_utilities,    { provides amongst others stream concatenation }
+  bc_textsearch,   { provides the base search engine }
+  textsearch_dd;   { provides a specialised daily diary search engine }
 type
   { state modes represented as a set }
-  TFormMode = (fmInsert,fmEdit,fmBrowse,fmDelete,fmInactive);
+  TFormMode = (fmInsert,fmEdit,fmBrowse,fmDelete,fmInactive,fmSearch);
   TFormModes = set of TFormMode;
+  TstbItems = array of string;
   { TbcMemo, a small hack :o) }
   TbcMemo = class(Tmemo)
   public
@@ -48,16 +50,23 @@ type
     btnAdd: TSpeedButton;
     btnDelete: TSpeedButton;
     btnSettings: TSpeedButton;
+    btnSearch: TSpeedButton;
+    btnFindNext: TSpeedButton;
+    btnHome: TSpeedButton;
     Splitter1: TSplitter;
     stbStatus: TStatusBar;
     tabMainDiary: TTabSheet;
+    Timer1: TTimer;
     trvNav: TTreeView;
     procedure btnAddClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure btnDeleteClick(Sender: TObject);
     procedure btnEditCancelClick(Sender: TObject);
     procedure btnEditSaveClick(Sender: TObject);
+    procedure btnFindNextClick(Sender: TObject);
+    procedure btnHomeClick(Sender: TObject);
     procedure btnReadDataClick(Sender: TObject);
+    procedure btnSearchClick(Sender: TObject);
     procedure btnSettingsClick(Sender: TObject);
     procedure btnUpdateClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -69,6 +78,8 @@ type
     { set tpagecontrol -> options ->  nboShowCloseButtons = true * }
     procedure pctPagesCloseTabClicked(Sender: TObject); { needed for closing tabs, when you're on them * }
     procedure pnlTopClick(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
+    procedure trvNavClick(Sender: TObject);
     procedure trvNavSelectionChanged(Sender: TObject);
   private
     fBom: TDDCollection;
@@ -81,10 +92,18 @@ type
     fSettings: TfraSettings; { * }
     fNewItem: TDDCollectionItem; { for when we'll add a new entry to our dataset }
     fEditItem: TDDCollectionItem; { for editing an entry in our dataset }
+    fFts: TddTextSearch;
+    fActiveSearchRec: PTextSearchRec;
+    fstbItems: TstbItems;
     function TestNewNode: string;
+    procedure InitGlyphs;
+    procedure InitStb(aStatus: TStatusBar;aColor,aFontColor: TColor;Items: array of string);
+    procedure ResizeStb;
+    procedure UpdateStb(Items: array of string);
     procedure CheckFormMode;
     procedure ConcatenateStreams(aStream1, aStream2: TStream);
     procedure PutFormInEditMode(anEditMode: boolean); { lock down controls and focus on memo }
+    procedure PutFormInSearchMode(aSearchMode: boolean);
     procedure ScrollMemoTo(const aMemo: TMemo;anOrigin: TSeekOrigin);
     procedure SetTextboxCaption(const aPrefix: string = ' ';anItem: TDDCollectionItem = nil;const aSuffix: string = ' ');
     function SerializeSet(aSet: TFormModes): string;
@@ -95,6 +114,7 @@ type
     procedure ShowDataRead(aDataset: TDDCollection);
     procedure ShowEditButtons(aVisible: boolean);
     procedure LMCloseTabsheet(var Msg: TLMCloseTabsheet); message LM_CLOSETABSHEET; { \o/ trickery } {*}
+    procedure LMInsertPage(var Message: TLMessage); message LM_INSERTPAGE; {*}
     procedure OnSettingsChange(aSender: TObject);
   end;
 
@@ -102,7 +122,7 @@ var
   frmDataAware: TfrmDataAware;
 
 implementation
-uses LCLType, bc_advstring, bc_msgqueue, dd_settings, bc_pcthelp; {*}
+uses LCLType, daily_diary_const, bc_advstring, bc_msgqueue, dd_settings, bc_pcthelp; {*}
 {$R *.lfm}
 
 { TbcMemo }
@@ -130,13 +150,13 @@ begin
     ooAddItem   : begin
                     DsI:= TDDCollectionItem(Data);
                     Gui.AddNewTreeNode(DsI);
-                    Gui.fFormModes:= [fmBrowse,fmInactive];
+                    Gui.fFormModes:= [fmBrowse];
                     Gui.SetTextboxCaption(' ',DsI,' ');   //bm
                     Gui.CheckFormMode;
                   end;
     ooChange    : begin
                     DsI:= TDDCollectionItem(Data);
-                    Gui.fFormModes:= [fmBrowse,fmInactive];
+                    Gui.fFormModes:= [fmBrowse];
                     Gui.SetTextboxCaption(' ',DsI,' ');
                     Gui.fEditItem:= nil;
                     Gui.CheckFormMode;
@@ -147,19 +167,65 @@ begin
                     Gui.DeleteTreeNode(DsI);
                   end;
   end;
+  Gui.UpdateStb(Gui.fstbItems);
 end;
 
 { TfrmDataAware }
 procedure TfrmDataAware.pnlTopClick(Sender: TObject);
-var Res: TbcStringType;
+var
+  Res: SizeInt;
+  tn: TTreeNode;
+  Mask: string;
+  dt: IIsoDateTime;
 begin
-//  fBom.BackupData;
-  Res:= bcGetStringType(InputBox('bcGetStringType','Pease enter a string:','01.01.1970'));
-  case Res of
-    TAlpha: ShowMessage('Type: TAlpha');
-    TNumeric: ShowMessage('Type: TNumeric');
-    TAlphaNumeric: ShowMessage('Type: TAlphaNumeric');
+  dt:= TIsoDateTime.Create(now);
+  dt.Time.AsStringShort:= InputBox('* TEST *','Enter a short time:','15.16');
+  pnlTop.Caption:= 'short: '+dt.Time.AsStringShort;
+  Application.ProcessMessages;
+  dt.Time.AsStringLong:= InputBox('* TEST *','Enter a long time:','15.16.17');
+  pnlTop.Caption:= 'long: '+dt.Time.AsStringLong;
+  Application.ProcessMessages;
+  dt.Time.AsStringISO:= InputBox('* TEST *','Enter a ISO time:','15:16:17.180');
+  pnlTop.Caption:= 'ISO: '+dt.Time.AsStringISO;
+  Application.ProcessMessages;
+  sleep(1000);
+  dt.Time.AsString:= InputBox('* TEST *','Enter a string time:','13.14..15.16.17,180');
+  pnlTop.Caption:= 'AsString: '+dt.Time.AsString;
+  Application.ProcessMessages;
+
+
+exit; //bm
+  fFts.Clear;
+  if fBom.ItemCount > 0 then begin
+    mask:= InputBox('Free text search','Enter text to search for:','Sheeba');
+    Res:= fFts.SearchDataset(mask,false,true);
+    if Res > 0 then begin
+      PutFormInSearchMode(true);
+      fFts.ResetCursor;
+      fActiveSearchRec:= fFts.GetNextSearchRec;
+      while fActiveSearchRec <> nil do begin
+        tn:= bcGetNodeByTextAtLevel(trvNav,fActiveSearchRec^.srName,true,3);
+        tn.Selected:= true;
+        memText.SelStart:= fActiveSearchRec^.srPos[0];
+        memText.SelLength:= fActiveSearchRec^.srLength;
+        Application.ProcessMessages;
+        sleep(2000);
+        fActiveSearchRec:= fFts.GetNextSearchRec;              //bm
+      end;
+    end;
   end;
+end;
+
+procedure TfrmDataAware.Timer1Timer(Sender: TObject);
+begin
+  fDt.AsDateTime:= now; { update internal clock once every second }
+  Caption:= MainTitle+' - '+fDt.AsStringShort;
+//  Caption:= fDt.AsString;
+end;
+
+procedure TfrmDataAware.trvNavClick(Sender: TObject);
+begin
+
 end;
 
 procedure TfrmDataAware.trvNavSelectionChanged(Sender: TObject);
@@ -186,6 +252,8 @@ begin
          SetTextboxCaption(' ',Item,' ');
          Item.Text.Position:= 0; { seek to beginning of stream }
          memText.Lines.LoadFromStream(Item.Text);
+         fstbItems[0]:= Item.Date.DayName+' d. '+Item.Date.DayAsString+' '+Item.Date.MonthName+' '+Item.Date.YearAsString;
+         UpdateStb(fstbItems);
        end;
   end;
 end;
@@ -211,10 +279,72 @@ begin
 *)
 end;
 
+procedure TfrmDataAware.InitGlyphs;
+var
+  Node: TTreeNode;
+begin
+  for Node in trvNav.Items do begin
+    case Node.Level of
+      0: begin { root }
+           Node.ImageIndex:= 1;
+           Node.SelectedIndex:= 8;
+         end;
+      1: begin { year }
+           Node.ImageIndex:= 19;
+           Node.SelectedIndex:= 20;
+         end;
+      2: begin { week }
+           Node.ImageIndex:= 13;
+           Node.SelectedIndex:= 14;
+         end;
+      3: begin { date }
+           Node.ImageIndex:= 15;
+           Node.SelectedIndex:= 16;
+         end;
+    end;
+  end;
+end;
+
+procedure TfrmDataAware.InitStb(aStatus: TStatusBar; aColor, aFontColor: TColor; Items: array of string);
+var
+  Idx: integer;
+begin
+  stbStatus.SimplePanel:= false;
+  stbStatus.Color:= aColor;
+  stbStatus.Font.Color:= aFontColor;
+  for Idx:= low(Items) to high(Items) do begin
+    with stbStatus.Panels.Add do begin
+      Text:= ' '+Items[Idx];
+      case Idx of
+        0: Width:= (stbStatus.Width - 250);
+        1: Width:= 110;
+        2: Width:= 15;
+        3: Width:= 90;
+      end;
+    end;
+  end;
+end;
+
+procedure TfrmDataAware.ResizeStb;
+//var
+//  Idx: integer;
+begin
+//  for Idx:= 0 to stbStatus.Panels.Count-1 do stbStatus.Panels[Idx].Width:= (stbStatus.Width div 4);
+end;
+
+procedure TfrmDataAware.UpdateStb(Items: array of string);
+begin
+  stbStatus.Panels[0].Text:= ' '+Items[0]; { name }
+  stbStatus.Panels[1].Text:= ' '+SerializeSet(fFormModes); { mode }
+  stbStatus.Panels[2].Text:= ' '+Items[2]; { photo }
+  stbStatus.Panels[3].Text:= ' '+Items[3]; { © }
+end;
+
 procedure TfrmDataAware.CheckFormMode;
 begin
   if (fmInsert in fFormModes) or (fmEdit in fFormModes) then PutFormInEditMode(true);
-  if (fmBrowse in fFormModes) or (fmInactive in fFormModes) then PutFormInEditMode(false);
+  if (fmBrowse in fFormModes) or (fmSearch in fFormModes) then PutFormInEditMode(false);
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.btnEditCancelClick(Sender: TObject);
@@ -225,7 +355,7 @@ begin
       SetTextboxCaption(' ',fEditItem,' ');
       fEditItem:= nil; { we were just borrowing it }
     end;
-    fFormModes:= [fmBrowse,fmInactive];
+    fFormModes:= [fmBrowse];
     CheckFormMode;
   end;
 end;
@@ -248,6 +378,39 @@ begin
   end;
 end;
 
+procedure TfrmDataAware.btnFindNextClick(Sender: TObject);
+var
+  Tn: TTreeNode;
+begin
+  if not (fmSearch in fFormModes) then exit;
+  fActiveSearchRec:= fFts.GetNextSearchRec;
+  PutFormInSearchMode(not fFts.IsLastRec);
+  if fActiveSearchRec <> nil then begin
+    Tn:= bcGetNodeByTextAtLevel(trvNav,fActiveSearchRec^.srName,true,3);
+    Tn.Selected:= true;
+    memText.SelStart:= bcGetNextSearchPosition(fActiveSearchRec);
+    memText.SelLength:= fActiveSearchRec^.srLength;
+  end else begin
+    PutFormInSearchMode(false);
+  end;
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
+end;
+
+procedure TfrmDataAware.btnHomeClick(Sender: TObject);
+begin
+  PutFormInSearchMode(false);
+  trvNav.BeginUpdate;
+  fRootNode.Selected:= true;
+  fRootNode.Collapse(true);
+  fRootNode.Expand(false);
+  trvNav.Items[3].Selected:= true; { show the first date }
+  trvNav.EndUpdate;
+  fFormModes+= [fmBrowse];
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
+end;
+
 procedure TfrmDataAware.ConcatenateStreams(aStream1, aStream2: TStream);
 begin
   aStream2.Position:= 0;
@@ -268,7 +431,7 @@ begin
              pnlTop.Enabled:= false;
            end;
     false: begin
-             fFormModes:= [fmBrowse,fmInactive];
+             fFormModes:= [fmBrowse];
              pnlTop.Enabled:= true;
              gbxNavigation.Enabled:= true;
              trvNav.SetFocus;
@@ -277,6 +440,23 @@ begin
              ShowEditButtons(false);
            end;
   end; { case }
+end;
+
+procedure TfrmDataAware.PutFormInSearchMode(aSearchMode: boolean);
+begin
+  case aSearchMode of
+    false: begin
+             btnFindNext.Enabled:= false;
+             Exclude(fFormModes,fmSearch);
+             CheckFormMode;
+           end;
+    true:  begin
+             if fFts.Count > 0 then btnFindNext.Enabled:= true;
+             Include(fFormModes,fmSearch);
+           end;
+  end;
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.ScrollMemoTo(const aMemo: TMemo;anOrigin: TSeekOrigin);
@@ -301,12 +481,12 @@ end;
 
 function TfrmDataAware.SerializeSet(aSet: TFormModes): string;
 const
-  Modes: array[TFormMode] of String[10] = ('fmInsert','fmEdit','fmBrowse','fmDelete','fmInactive');
+  Modes: array[TFormMode] of String[8] = ('Insert','Edit','Browse','Delete','Inactive','Search');
 var
   Fm: TFormMode;
 begin
   Result:= '';
-  for Fm:= fmInsert to fmInactive do if Fm in aSet then begin
+  for Fm:= fmInsert to fmSearch do if Fm in aSet then begin
     if (Result <> '') then Result+= ', ';
     Result+= Modes[Fm]; { shorthand for "result:= result + modes[fm];" }
   end;
@@ -316,34 +496,45 @@ procedure TfrmDataAware.AddNewTreeNode(anItem: TDDCollectionItem);
 var
   YearNode,WeekNode,DateNode: TTreeNode;
 begin
+  DateNode:= nil;
   if trvNav.Items.Count = 0 then exit;
   { insert node before every other year, week or date-nodes, our dataset is sorted in reverse }
   if not assigned(fLevel1) then fLevel1:= trvNav.Items[1]; { first yearnode is level 1 }
   if not assigned(fLevel2) then fLevel2:= trvNav.Items[2]; { first weeknode is level 2 }
   { first check if the year exist or not }
-  YearNode:= GetNodeByTextAtLevel(trvNav,anItem.Date.YearAsString,false,1);
+  YearNode:= bcGetNodeByTextAtLevel(trvNav,anItem.Date.YearAsString,false,1);
   if YearNode <> nil then begin
     { ok, year does exist, figure out if the week does too }
-    WeekNode:= GetNodeByTextAtLevel(trvNav,anItem.Date.WeekNumberAsString,false,2);
-    if WeekNode <> nil then begin { ok, week does exist, has it got the right year as parent? }
-      if WeekNode.Parent = YearNode then begin
-        { ok, we've got the right weeknode, now add our new datenode }
-        DateNode:= AddFirstChildNodeWithData(trvNav,WeekNode,anItem.Date.AsString,pointer(anItem));
-      end; { year and week exists }
-    end else begin
-      { year exists, week does not, we'll add it and a datenode }
-      WeekNode:= AddFirstChildNodeWithData(trvNav,YearNode,anItem.Date.WeekNumberAsString,nil);
+    WeekNode:= bcGetNodeWithParentByTextAtLevel(trvNav,YearNode,anItem.Date.WeekNumberAsString,false,2);
+    if WeekNode <> nil then begin { ok, week does exist, with the right year as parent }
+      { ok, we've got the right weeknode, now add our new datenode }
       DateNode:= AddFirstChildNodeWithData(trvNav,WeekNode,anItem.Date.AsString,pointer(anItem));
+      DateNode.ImageIndex:= 15;    { assign pretty pictures }
+      DateNode.SelectedIndex:= 16; { year and correct week exists }
+    end else begin
+      { year exists, correct week does not, we'll add it and a datenode }
+      WeekNode:= AddFirstChildNodeWithData(trvNav,YearNode,anItem.Date.WeekNumberAsString,nil);
+      WeekNode.ImageIndex:= 13;     { assign pretty pictures }
+      WeekNode.SelectedIndex:= 14;
+      DateNode:= AddFirstChildNodeWithData(trvNav,WeekNode,anItem.Date.AsString,pointer(anItem));
+      DateNode.ImageIndex:= 15;     { assign pretty pictures }
+      DateNode.SelectedIndex:= 16;
     end; { year exists, no week }
   end else begin
     { it's a new year, we'll add a yearnode, this will become our new flevel1-node }
     fLevel1:= AddFirstChildNodeWithData(trvNav,fRootNode,anItem.Date.YearAsString,nil);
+    fLevel1.ImageIndex:= 19;
+    fLevel1.SelectedIndex:= 20;
     { right, that means no weeknode with this year as parent exist, we'll add our new flevel2-node }
     fLevel2:= AddFirstChildNodeWithData(trvNav,fLevel1,anItem.Date.WeekNumberAsString,nil);
+    fLevel2.ImageIndex:= 13;     { assign pretty pictures }
+    fLevel2.SelectedIndex:= 14;
     { this also means no datenode with this year & week as parents exist, we'll add a new datenode }
     DateNode:= AddFirstChildNodeWithData(trvNav,fLevel2,anItem.Date.AsString,pointer(anItem));
+    DateNode.ImageIndex:= 15;    { assign pretty pictures }
+    DateNode.SelectedIndex:= 16;
   end; { it's a new year }
-  DateNode.Selected:= true;
+  if Assigned(DateNode) then DateNode.Selected:= true;
 end;
 
 procedure TfrmDataAware.FindAndAddYearNode(anItem: TDDCollectionItem);
@@ -351,26 +542,22 @@ var
   YearNode, WeekNode, DateNode: TTreeNode;
 begin
   { find out if we've already added a node with this year, all yearnodes are level 1 }
-  YearNode:= GetNodeByTextAtLevel(trvNav,anItem.Date.YearAsString,true,1);
+  YearNode:= bcGetNodeByTextAtLevel(trvNav,anItem.Date.YearAsString,true,1);
   if YearNode <> nil then begin
     { find out if we've already added a node with this week, all weeknodes are level 2 }
-    WeekNode:= GetNodeByTextAtLevel(trvNav,anItem.Date.WeekNumberAsString,true,2);
+    WeekNode:= bcGetNodeWithParentByTextAtLevel(trvNav,YearNode,anItem.Date.WeekNumberAsString,true,2);
     if WeekNode <> nil then begin
-      if WeekNode.Parent = YearNode then begin
-        { ok, we've got the right weeknode, now find out if we've already added a node with this date,
-          all datenodes are level 3 }
-        DateNode:= GetNodeByTextAtLevel(trvNav,anItem.Date.AsString,true,3);
-        if DateNode <> nil then begin
-          if DateNode.Parent = WeekNode then begin
-            { hmmm, existing datenode, must concatenate the 2 streams... }
-            bc_utilities.ConcatenateStreams(TDDCollectionItem(DateNode.Data).Text,anItem.Text,true);
-            YearNode.Collapse(true);
-          end;
-        end else begin
-          { add our new datenode }
-          DateNode:= AddChildNodeWithData(trvNav,WeekNode,anItem.Date.AsString,pointer(anItem));  // 1.st date
-          YearNode.Collapse(true);
-        end;
+      { ok, we've got the right weeknode, now find out if we've already added a node with this date,
+        all datenodes are level 3 }
+      DateNode:= bcGetNodeWithParentByTextAtLevel(trvNav,WeekNode,anItem.Date.AsString,true,3);
+      if DateNode <> nil then begin
+        { hmmm, existing datenode, must concatenate the 2 streams... }
+        bc_utilities.ConcatenateStreams(TDDCollectionItem(DateNode.Data).Text,anItem.Text,true);
+        YearNode.Collapse(true);
+      end else begin
+        { add our new datenode }
+        DateNode:= AddChildNodeWithData(trvNav,WeekNode,anItem.Date.AsString,pointer(anItem));  // 1.st date
+        YearNode.Collapse(true);
       end;
     end else begin
       { add our new weeknode and datenode }
@@ -408,18 +595,20 @@ begin
     Item:= TDDCollectionItem(Ci);
     FindAndAddYearNode(Item);
   end;
+  InitGlyphs; //bm
   fRootNode.Selected:= true;
   fRootNode.Collapse(true);
   fRootNode.Expand(false);
   trvNav.Items[3].Selected:= true; { show the first date on startup }
   trvNav.EndUpdate;
-  fFormModes+= [fmInactive,fmBrowse];
+  fFormModes+= [fmBrowse];
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.DeleteTreeNode(anItem: TDDCollectionItem);
 var Tn: TTreeNode;
 begin
-  Tn:= GetNodeByTextAtLevel(trvNav,anItem.Date.AsString,false,3);
+  Tn:= bcGetNodeByTextAtLevel(trvNav,anItem.Date.AsString,false,3);
   if Tn <> nil then begin
     trvNav.Selected:= Tn.Parent;
     trvNav.Items.Delete(Tn);
@@ -437,6 +626,20 @@ begin
   pctPagesCloseTabClicked(TObject(Msg.WParam));
 end;
 
+procedure TfrmDataAware.LMInsertPage(var Message: TLMessage); {*}
+var
+  New: TDDCollectionItem;
+  S: string;
+begin
+  //todo take the date in wparam and insert it into dataset
+  New:= fBom.CreateNew;
+  New.Date.AsInteger:= Message.WParam; { transferred from settings-frame }
+  S:= 'Diary page inserted by choice!';
+  New.Text.Write(S[1],Length(S));
+  New.Modified:= mAdded;
+  fBom.AppendToDelta(New);
+end;
+
 procedure TfrmDataAware.OnSettingsChange(aSender: TObject); { aSender contains the settings object }
 var S: TDDSettings;
 begin
@@ -444,7 +647,7 @@ begin
   fBom.BatchUpdate:= S.BatchUpdates;
   fBom.UpdateCount:= S.BatchCount;
   fBom.DbName:= S.Databasename;
-//  fBom.AutoBackup:= S.AutoBackup;
+  fBom.AutoBackup:= S.AutoBackup;
 end;
 
 procedure TfrmDataAware.FormCreate(Sender: TObject);
@@ -453,10 +656,13 @@ begin
   fBom:= CreateBom;
   fObserver:= TDDObserver.Create(Self);
   fBom.AttachObserver(fObserver); { refactored 11.10.2022 /bc }
-//  fBom.Observed.FPOAttachObserver(fObserver);
-//  Caption:= fDt.AsISOString;
+  fFts:= TddTextSearch.Create(fBom); { data not yet loaded! but search engine caters for that }
   Caption:= fDt.AsString;
-  fFormModes:= [fmBrowse,fmInactive];
+  SetLength(fstbItems,4);
+  fstbItems:= ['Daily Diary, v. 03.09.11.2022','Mode','*','©2022 cdbc'];
+  InitStb(stbStatus,clDefault,clHighlight,fstbItems); //clYellow  clLime
+  fFormModes:= [fmBrowse];
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.btnCloseClick(Sender: TObject);
@@ -469,7 +675,7 @@ var
   Tn: TTreeNode;
 begin
   { is this the first entry today or is it n.th? }
-  Tn:= GetNodeByTextAtLevel(trvNav,fDt.Date.AsString,false,3);
+  Tn:= bcGetNodeByTextAtLevel(trvNav,fDt.Date.AsString,false,3);
   if Tn <> nil then begin
     { ok, it's #n, so we'll just update the existing entry }
     Tn.Selected:= true;
@@ -487,6 +693,8 @@ begin
     CheckFormMode;
     fEditItem:= nil;
   end;
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.btnDeleteClick(Sender: TObject);
@@ -502,7 +710,7 @@ begin
     Item.Modified:= mDelete;
     fbom.AppendToDelta(Item);
   end;
-  fFormModes:= [fmInactive,fmBrowse];
+  fFormModes:= [fmBrowse];
 end;
 
 procedure TfrmDataAware.btnReadDataClick(Sender: TObject);
@@ -510,7 +718,30 @@ procedure TfrmDataAware.btnReadDataClick(Sender: TObject);
 begin
   fBom.ReadDataWithBlob(false); // read ascending dates
   btnReadData.Enabled:= false; // only run once on app-startup
-  fFormModes+= [fmBrowse,fmInactive];
+  fFormModes:= [fmBrowse];
+end;
+
+procedure TfrmDataAware.btnSearchClick(Sender: TObject);
+var
+  Res: SizeInt;
+  Tn: TTreeNode;
+  Mask: string;
+begin
+  if ((fmInsert in fFormModes) or (fmEdit in fFormModes)) then exit; { do not interfere with editing }
+  fFts.Clear;
+  mask:= InputBox('Free text search','Enter text to search for:','');
+  Res:= fFts.SearchDataset(Mask,DDSettings.CaseSensitive,DDSettings.MatchAll);
+  if Res > 0 then begin
+//    PutFormInSearchMode(true);
+    fFts.ResetCursor;
+    fActiveSearchRec:= fFts.GetNextSearchRec;
+    PutFormInSearchMode(not fFts.IsLastRec);
+    Tn:= bcGetNodeByTextAtLevel(trvNav,fActiveSearchRec^.srName,true,3);
+    Tn.Selected:= true;
+    memText.SelStart:= bcGetNextSearchPosition(fActiveSearchRec);
+    memText.SelLength:= fActiveSearchRec^.srLength;
+  end;
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.btnSettingsClick(Sender: TObject);
@@ -524,6 +755,8 @@ begin
     fSettings:= CreateSettingsFrame(tabSettings,DDSettings);
     fSettings.OnChange:= @OnSettingsChange;
     fSettings.chbCachedUpd.Enabled:= false; { not worth the trouble! }
+    fSettings.gbxEngine.Font.Color:= clYellow;
+    fSettings.gbxEngine.Caption:= fSettings.gbxEngine.Caption+'v. '+daily_diary_const.UnitVersion+' ';
   end;
 end;
 
@@ -536,28 +769,54 @@ begin
     SetTextboxCaption(' Editing [',fEditItem,'] ');
     CheckFormMode;
   end;
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.FormDestroy(Sender: TObject);
 begin
+  if Assigned(fFts) then FreeAndNil(fFts);
   Exclude(fFormModes,fmBrowse);
   fBom.DetachObserver(fObserver); { refactored 11.10.2022 /bc }
   fBom.Clear;
   fBom:= nil; { memory gets released / freed on program end, in bom_dd.pas }
   fObserver.Free;
   fDt:= nil;
+  SetLength(fstbItems,0);
 end;
 
 procedure TfrmDataAware.FormKeyDown(Sender: TObject; var Key: Word;Shift: TShiftState);
+var
+  P: SizeInt;
 begin
   case Key of
-    $4E: if ssCtrl in Shift then btnAddClick(Sender);      { [ctrl] + [N] ~ VK_N ~ #78 }
+    $46: if ssCtrl in Shift then btnSearchClick(Sender); { [ctrl] + [F] ~ VK_F ~ #70 }
+    $4E: begin
+           if ssCtrl in Shift then btnAddClick(Sender); { [ctrl] + [N] ~ VK_N ~ #78 }
+           if ssAlt in Shift then btnFindNextClick(Sender); { [alt] + [N] ~ VK_N ~ #78 }
+         end;
     $71: btnUpdateClick(Sender);                           { F2 ~ VK_F2 ~ #113 }
-    $1B: btnEditCancelClick(Sender);                       { Esc ~ VK_ESCAPE ~ #27}
+    $72: if fmSearch in fFormModes then begin              { F3 ~ VK_F3 ~ #114 }
+           if fActiveSearchRec <> nil then begin
+             P:= bcGetNextSearchPosition(fActiveSearchRec); { spins around to beginning }
+             memText.SelStart:= P;
+             memText.SelLength:= fActiveSearchRec^.srLength;
+           end;
+         end;                                              { F3 ~ VK_F3 ~ #114 }
+    $1B: begin                                         { Esc ~ VK_ESCAPE ~ #27 }
+           PutFormInSearchMode(false);
+           btnEditCancelClick(Sender);
+         end;
     $2E: if not memText.Focused then btnDeleteClick(Sender); { Delete ~ VK_DELETE ~ #46 }
+    $24: if not memText.Focused then begin              { Home ~ VK_HOME ~ #36 }
+           btnHomeClick(Sender);
+           Key:= 0;
+         end;
     $53: if memText.Focused then
            if ssCtrl in Shift then btnEditSaveClick(Sender); { VK_S ~ #83 = [ctrl] + [S]}
   end;
+//  fstbItems[1]:= SerializeSet(fFormModes);
+  UpdateStb(fstbItems);
 end;
 
 procedure TfrmDataAware.FormResize(Sender: TObject);
@@ -571,10 +830,10 @@ procedure TfrmDataAware.FormShow(Sender: TObject);
 begin
   btnEditSave.Left:= pnlEditButtons.Width - 32;
   btnEditSave.Top:= 2;
-  lblName.Left:= ((pnlEditButtons.Width div 2) - (lblName.Width div 2));
+//  lblName.Caption:= '[Esc] = Cancel changes'+#9#9#9+'Saves changes = [Ctrl]+[S]';
+//  lblName.Left:= 50;
   btnReadDataClick(Sender);
   if trvNav.CanSetFocus then trvNav.SetFocus;
-  stbStatus.SimpleText:= lblName.Caption;
 end;
 
 procedure TfrmDataAware.memTextClick(Sender: TObject);

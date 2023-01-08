@@ -1,6 +1,6 @@
-{****************************************************
-* 01.02.2021 /bc simple app settings persistence    *
-****************************************************}
+{***************************************************************
+* 11.11.2022 /bc once was a simple app settings persistence    *
+***************************************************************}
 unit dd_settings;
 
 {$mode objfpc}{$H+}
@@ -16,11 +16,13 @@ type
     fAutoBackup: boolean;
     fBatchCount: integer;
     fBatchUpdates: boolean;
+    fCaseSensitive: boolean;
     fFrequency: integer;
     fIni: TIniFile;
     fBackupname: string;
     fDbname: string;
     fLastBackup: string;
+    fMatchAll: boolean;
     function ReadInifile: boolean;
     function WriteInifile: boolean;
   public
@@ -31,9 +33,11 @@ type
     property BackupPath: string read fBackupname write fBackupname;
     property AutoBackup: boolean read fAutoBackup write fAutoBackup;
     property BackupFrequency: integer read fFrequency write fFrequency;
-    property LastBackup: string read fLastBackup;
+    property LastBackup: string read fLastBackup write fLastBackup;
     property BatchUpdates: boolean read fBatchUpdates write fBatchUpdates;
     property BatchCount: integer read fBatchCount write fBatchCount;
+    property CaseSensitive: boolean read fCaseSensitive write fCaseSensitive;
+    property MatchAll: boolean read fMatchAll write fMatchAll;
   end;
 
 function DDSettings: TDDSettings;
@@ -61,6 +65,8 @@ begin
   fLastBackup:= fIni.ReadString('Files','LastBackup','01.01.1970'); { unix epoch }
   fBatchUpdates:= fIni.ReadBool('Engine','BatchUpdates',false); { cache updates in db-engine }
   fBatchCount:= fIni.ReadInteger('Engine','BatchCount',3); { no of cache updates in db-engine }
+  fCaseSensitive:= fIni.ReadBool('Engine','CaseSensitive',false); { case sensitivity in search-engine }
+  fMatchAll:= fIni.ReadBool('Engine','MatchAll',true); { no of matches returned by search-engine }
   Result:= true;
 end;
 
@@ -75,6 +81,8 @@ begin
   fIni.WriteString('Files','LastBackup',fLastBackup);
   fIni.WriteBool('Engine','BatchUpdates',fBatchUpdates); { initialized on 1.st run to false }
   fIni.WriteInteger('Engine','BatchCount',fBatchCount); { no of cache updates in db-engine }
+  fIni.WriteBool('Engine','CaseSensitive',fCaseSensitive); { case sensitivity in search-engine }
+  fIni.WriteBool('Engine','MatchAll',fMatchAll); { no of matches returned by search-engine }
   fIni.UpdateFile;
   Result:= true;;
 end;
