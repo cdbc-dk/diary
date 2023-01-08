@@ -1,4 +1,4 @@
-unit bom_dd;
+﻿unit bom_dd;
 {$mode objfpc}{$H+}
 {$define debug}
 {$define id_dd}
@@ -369,8 +369,14 @@ begin
   Result:= true;
   { creates a new db and table if not existing }
   try fDb.RunSQL(daily_diary_const.CreateDb); except  end;
-  { creates a autobackup table if not existing }
+  { creates an autobackup table if not existing }
   try fDb.RunSQL(daily_diary_const.CreateAB); except  end;
+(*  
+  { creates a photos table if not existing, holding thumbnails }
+  try fDb.RunSQL(daily_diary_const.CreatePH); except  end;
+  { creates a pictures table if not existing, holding the actual full size pictures }
+  try fDb.RunSQL(daily_diary_const.CreatePI); except  end;
+*)  
 end;
 
 { creates a new item, owned by this collection }
@@ -379,6 +385,14 @@ begin
   Result:= fDDItemClass.Create(Self);      { created with owner collection }
   Result.Id_DD:= 0;
   Result.Date.AsDate:= now;
+end;
+
+{ sorts the collection after dates, newest first }
+function DateCompareDD(Item1, Item2: TCollectionItem): Integer;
+begin
+  if TDDCollectionItem(Item1).Date.AsDate < TDDCollectionItem(Item2).Date.AsDate then Result:= 1
+  else if TDDCollectionItem(Item1).Date.AsDate > TDDCollectionItem(Item2).Date.AsDate then Result:= -1
+  else if TDDCollectionItem(Item1).Date.AsDate = TDDCollectionItem(Item2).Date.AsDate then Result:= 0;
 end;
 
 { updates the database according to the modified state }
@@ -412,6 +426,8 @@ begin
                 end;
     end; { end case }
   end;
+  { now sort the dataset, so when searching, the newest won't come last }
+  Sort(@DateCompareDD);
 end;
 
 { addrecord persists anitem to database and returns the new row_id as a result }
